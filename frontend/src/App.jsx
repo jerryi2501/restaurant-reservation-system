@@ -27,7 +27,8 @@ const TableManagementPage    = lazy(() => import("./pages/admin/TableManagementP
 const TimeSlotManagementPage = lazy(() => import("./pages/admin/TimeSlotManagementPage")); // SC-A03
 
 // 共通
-const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const NotFoundPage   = lazy(() => import("./pages/NotFoundPage"));
+const ComingSoonPage = lazy(() => import("./pages/ComingSoonPage"));
 
 // アプリ全体の画面遷移（ルーティング）。画面を作るごとに <Route> を追加。
 export default function App() {
@@ -60,6 +61,11 @@ export default function App() {
           <Route path="/admin/users"      element={<StaffManagementPage />} />
           <Route path="/admin/tables"     element={<TableManagementPage />} />
           <Route path="/admin/time-slots" element={<TimeSlotManagementPage />} />
+
+          {/* 準備中（店舗案内・アクセス・よくある質問） */}
+          <Route path="/about"  element={<ComingSoonPage title="店舗案内"     active="about" />} />
+          <Route path="/access" element={<ComingSoonPage title="アクセス"     active="access" />} />
+          <Route path="/faq"    element={<ComingSoonPage title="よくある質問" active="faq" />} />
 
           {/* 該当なし */}
           <Route path="*" element={<NotFoundPage />} />

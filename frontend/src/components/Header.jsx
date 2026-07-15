@@ -2,7 +2,11 @@
 // props: active — 現在ページに対応するメニュー（"reserve" のとき「ご予約」を強調）
 import { Link } from "react-router-dom";
 
-const NAV_ITEMS = ["店舗案内", "アクセス", "よくある質問"];
+const NAV_ITEMS = [
+  { key: "about",  label: "店舗案内",     to: "/about" },
+  { key: "access", label: "アクセス",     to: "/access" },
+  { key: "faq",    label: "よくある質問", to: "/faq" },
+];
 
 export default function Header({ active }) {
   return (
@@ -12,8 +16,10 @@ export default function Header({ active }) {
 
         <nav style={s.nav}>
           <Link to="/" style={{ ...s.link, ...(active === "reserve" ? s.active : null) }}>ご予約</Link>
-          {/* 未実装ページのため今はリンクにしない（プレースホルダ） */}
-          {NAV_ITEMS.map(item => <span key={item} style={s.link}>{item}</span>)}
+          {/* 各ページは準備中（ComingSoonPage）へ遷移 */}
+          {NAV_ITEMS.map(({ key, label, to }) => (
+            <Link key={key} to={to} style={{ ...s.link, ...(active === key ? s.active : null) }}>{label}</Link>
+          ))}
         </nav>
 
         {/* TODO [AUTH]: ログイン済みなら「ログイン/新規登録」→「マイページ/ログアウト」に切替 */}
