@@ -3,6 +3,8 @@
 レストランの座席予約と店舗運営をリアルタイムで管理する Web アプリケーションです。
 お客様はオンラインで空席を確認して予約でき、スタッフ・管理者は予約状況やテーブル状態を一元管理できます。
 
+**🔗 デモサイト: [restaurant-reservation-system-thai25.vercel.app](https://restaurant-reservation-system-thai25.vercel.app)**
+
 > 🚧 現在フロントエンド（全19画面）がモックAPIで動作する状態です。バックエンド（Spring Boot）と WebSocket によるリアルタイム連携は開発予定です。
 
 ## 主な機能
