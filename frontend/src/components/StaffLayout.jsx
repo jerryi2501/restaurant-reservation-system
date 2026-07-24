@@ -2,6 +2,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, CalendarCheck, Grid3x3, Users, Armchair, Clock, LogOut } from "lucide-react";
 import { useAuthStore } from "../store";
+import { logout } from "../api/mockApi";
 
 const NAV = [
   { to: "/staff",              label: "ダッシュボード", icon: LayoutDashboard, end: true },
@@ -39,9 +40,13 @@ export default function StaffLayout({ children }) {
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
-  function handleLogout() {
+  async function handleLogout() {
+    try {
+      await logout();                  // サーバー側の Cookie を無効化
+    } catch {
+      // 失敗してもクライアント側はクリアする
+    }
     clearAuth();
-    localStorage.removeItem("token");
     navigate("/staff/login");
   }
 

@@ -7,10 +7,10 @@ import { ui } from "../../styles/ui";
 // TODO [BACKEND]: 通常は SC-C01 の preview 結果が location.state で渡る。
 //   直接URLアクセス時のフォールバック用モック（本番では "/" へリダイレクト推奨）。
 const MOCK_STATE = {
-  query: { reservationDate: "2026-07-01", timeSlotId: 2, timeSlotLabel: "第2部　13:30〜15:30", partySize: 6 },
+  query: { reservationDate: "2026-07-01", timeSlotId: 2, timeSlotLabel: "第2部 13:30〜15:30", partySize: 6 },
   combinations: [
     { tableIds: [2, 5],    label: "4人用 + 2人用",        tableCount: 2, waste: 0, requiresApproval: false },
-    { tableIds: [3, 7, 8], label: "4人用 + カウンター×2", tableCount: 3, waste: 0, requiresApproval: false },
+    { tableIds: [3, 7, 8], label: "4人用 + カウンターx2", tableCount: 3, waste: 0, requiresApproval: false },
   ],
 };
 
@@ -32,7 +32,7 @@ export default function CombinationsPage() {
   return (
     <Layout active="reserve">
       <div style={ui.narrow}>
-        <p style={s.crumb}>{query.reservationDate}　{query.timeSlotLabel}　{query.partySize}名</p>
+        <p style={s.crumb}>{query.reservationDate} {query.timeSlotLabel} {query.partySize}名</p>
         <h1 style={ui.h1}>ご利用いただける席の組み合わせ</h1>
 
         <div style={s.list}>
@@ -45,7 +45,7 @@ export default function CombinationsPage() {
                 <span style={s.radio}>{on ? "●" : "○"}</span>
                 <span style={s.optBody}>
                   <span style={s.optTitle}>{c.label}</span>
-                  <span style={s.optSub}>　{c.tableCount}卓・無駄{c.waste}席</span>
+                  <span style={s.optSub}> {c.tableCount}卓・無駄{c.waste}席</span>
                   <span style={s.optTables}>テーブル: {c.tableIds.join(", ")}</span>
                 </span>
               </button>

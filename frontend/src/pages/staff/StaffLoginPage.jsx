@@ -23,9 +23,8 @@ export default function StaffLoginPage() {
     setError("");
     try {
       const data = await loginStaff({ username, password });
-      localStorage.setItem("token", data.token);
-      // role 付きでログイン状態を保存（STAFF / ADMIN）
-      setAuth({ name: data.displayName, role: data.role }, data.token);
+      // role 付きでログイン状態を保存（STAFF / ADMIN）。トークンは Cookie 管理。
+      setAuth({ name: data.displayName, role: data.role });
       navigate("/staff");
     } catch (err) {
       setError(err.message);

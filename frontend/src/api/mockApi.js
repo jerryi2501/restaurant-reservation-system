@@ -1,171 +1,151 @@
 // ============================================================
-//  モックAPI（フロントエンド単独で動かすための仮実装）
+//  API 呼び出し層（Spring Boot バックエンドへ接続）
 // ------------------------------------------------------------
-//  ★ バックエンド担当者へ ★
-//  各関数は「API設計書」のエンドポイントに1対1で対応しています。
-//  実装時は、各関数の中身を src/api/client.js（api.get / api.post ...）
-//  を使った本物のAPI呼び出しに置き換えてください。
-//  画面側（pages/*）はこのファイルの関数を呼ぶだけなので、
-//  ここを差し替えれば全画面が本番APIに繋がります。
-//  目印: このファイル内の「TODO [BACKEND]」を検索してください。
+//  以前はモック実装だったが、API設計書 v1.0 に沿って本物の
+//  エンドポイント呼び出しへ差し替え済み。
+//  ・通信は src/api/client.js（axios）経由。
+//  ・client.js のインターセプタが { success, data, message } を
+//    解釈し、成功時は data だけを返す（失敗時は message を throw）。
+//  ・画面側（pages/*）が期待する形に合わせるため、必要な箇所だけ
+//    レスポンスを整形している（例: slotLabel → label）。
+//  ※ ファイル名は互換のため mockApi.js のまま（全画面が import 済み）。
 // ============================================================
-
-// 通信っぽい遅延（本番では不要・削除可）
-const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
+import { api } from "./client";
 
 // ------------------------------------------------------------
-// 時間帯一覧
-// TODO [BACKEND] GET /api/time-slots
-//   res.data: [ { id: number, slotLabel: string, startTime, endTime } ]
-//   （※ 画面では label として slotLabel を使う想定）
-// 置き換え例:
-//   export async function fetchTimeSlots() {
-//     const data = await api.get("/api/time-slots");
-//     return data.map(s => ({ id: s.id, label: s.slotLabel }));
-//   }
+// 時間帯一覧  GET /api/time-slots
+//   res.data: [ { id, slotLabel, startTime, endTime } ]
+//   画面は label を使うので slotLabel → label に整形。
 // ------------------------------------------------------------
 export async function fetchTimeSlots() {
-  await delay();
-  return [
-    { id: 1, label: "第1部　11:00〜13:00" },
-    { id: 2, label: "第2部　13:30〜15:30" },
-    { id: 3, label: "第3部　18:00〜20:00" },
-    { id: 4, label: "第4部　20:30〜22:30" },
-  ];
+  const data = await api.get("/api/time-slots");
+  return data.map((s) => ({ id: s.id, label: s.slotLabel }));
 }
 
 // ------------------------------------------------------------
-// テーブル組み合わせプレビュー（DBへは書き込まない）
-// TODO [BACKEND] POST /api/reservations/preview
+// テーブル組み合わせプレビュー  POST /api/reservations/preview
 //   req:  { reservationDate, timeSlotId, partySize }
-//   res.data: {
-//     partySize,
-//     combinations: [ { label, totalSeats, waste, tableCount,
-//                       tables:[{tableId,tableNumber,capacity}] } ],
-//     requiresApproval: boolean   // partySize 9〜16 で true
-//   }
-//   ※ combinations が空 = 満席（画面で「お電話ください」を表示）
-// 画面では tableIds（数値配列）を使うので、必要なら tables から id を取り出す。
+//   res.data: { partySize, combinations:[{ label, totalSeats, waste,
+//               tableCount, tables:[{tableId,tableNumber,capacity}] }],
+//               requiresApproval }
+//   画面は各組み合わせの tableIds（数値配列）を使うので tables から取り出す。
+//   満席時はサーバーが success:false を返す → client.js が throw する。
+//   画面側は「combinations が空」で満席判定するため、満席だけ握りつぶして
+//   空配列を返す（それ以外のエラーは再スロー）。
 // ------------------------------------------------------------
 export async function previewReservation({ reservationDate, timeSlotId, partySize }) {
-  await delay();
-  const requiresApproval = partySize >= 9; // 9〜16名はスタッフ承認待ち
-
-  // 仮の組み合わせ（本番はバックエンドの「コイン両替アルゴリズム」が算出）
-  const combinations = [
-    { tableIds: [2, 5],    label: "4人用 + 2人用",        tableCount: 2, waste: 0, requiresApproval },
-    { tableIds: [3, 7, 8], label: "4人用 + カウンター×2", tableCount: 3, waste: 0, requiresApproval },
-  ];
-
-  return { partySize, combinations, requiresApproval };
+  try {
+    const data = await api.post("/api/reservations/preview", { reservationDate, timeSlotId, partySize });
+    const combinations = (data.combinations ?? []).map((c) => {
+      const tables = c.tables ?? [];
+      return {
+        // tableIds はサーバーが直接返す。無ければ tables から取り出す。
+        tableIds: c.tableIds ?? tables.map((t) => t.tableId),
+        // サーバーが label / tableCount を返さないため、無い場合はこちらで生成する。
+        label: c.label ?? tables.map((t) => `${t.capacity}人用`).join(" + "),
+        tableCount: c.tableCount ?? tables.length,
+        waste: c.waste,
+        requiresApproval: data.requiresApproval,
+      };
+    });
+    return { partySize: data.partySize, combinations, requiresApproval: data.requiresApproval };
+  } catch (err) {
+    // 満席（success:false）は空の組み合わせとして扱う
+    if (err.message && err.message.includes("満席")) {
+      return { partySize, combinations: [], requiresApproval: false };
+    }
+    throw err;
+  }
 }
 
 // ------------------------------------------------------------
-// 予約確定
-// TODO [BACKEND] POST /api/reservations
-//   req: { reservationDate, timeSlotId, partySize,
-//          customerName, customerPhone, tableIds, notes }
-//   res(1〜8名)  : { reservationId, status:"CONFIRMED", ... }
-//   res(9〜16名) : { reservationId, status:"PENDING", expiresAt }
-//   409: テーブル二重予約 → 画面で再プレビューへ誘導
+// 予約確定  POST /api/reservations
+//   req: { reservationDate, timeSlotId, partySize, customerName,
+//          customerPhone, tableIds, notes }（customerEmail も送る）
+//   res(1〜8名) : { reservationId, status:"CONFIRMED", ... }
+//   res(9〜16名): { reservationId, status:"PENDING", expiresAt }
+//   409: テーブル二重予約 → client.js が message を throw
 // ------------------------------------------------------------
 export async function createReservation(payload) {
-  await delay();
-  const status = payload.partySize >= 9 ? "PENDING" : "CONFIRMED";
-  const result = { reservationId: 1000 + Math.floor(Math.random() * 900), status };
-  if (status === "PENDING") {
-    // 10分後に自動キャンセル（API設計書）
-    result.expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  }
-  return result;
+  // 画面からは reservationDate で来るが、サーバーは date + acceptSplit を要求する。
+  // acceptSplit: 複数テーブルの組み合わせ（分割席）を承諾したか＝テーブルが2つ以上なら true。
+  const body = {
+    date: payload.reservationDate,
+    timeSlotId: payload.timeSlotId,
+    partySize: payload.partySize,
+    tableIds: payload.tableIds,
+    acceptSplit: (payload.tableIds?.length ?? 0) > 1,
+    customerName: payload.customerName,
+    customerPhone: payload.customerPhone,
+    notes: payload.notes,
+  };
+  return api.post("/api/reservations", body);
 }
 
 // ------------------------------------------------------------
-// 顧客ログイン
-// TODO [BACKEND] POST /api/customer/auth/login
-//   req: { email, password }
-//   res: { token, customerId, name, rankPoints, currentPoints }
-//   401: メール/パスワード違い → 画面でエラー表示
+// 顧客ログイン  POST /api/auth/customer/login
+//   req:  { username(=email), password }
+//   res.data: { type, role, displayName }（トークンは Cookie で返る）
 // ------------------------------------------------------------
-export async function loginCustomer({ email, password}) {
-  await delay();
-  // 仮：入力があれば成功とみなす（本番はサーバーが判定）
-  if (!email || !password) throw new Error("メールとパスワードを入力してください");
-  return { token: "mock-jwt-token", customerId: 1, name: "山田 太郎", rankPoints: 1500, currentPoints: 800};
+export async function loginCustomer({ email, password }) {
+  return api.post("/api/auth/customer/login", { username: email, password });
 }
 
 // ------------------------------------------------------------
-// 顧客新規登録
-// TODO [BACKEND] POST /api/customer/auth/register
-//   req: { name, phone, email, password }
-//   res: { customerId, name, email }
-//   409: メール重複 → throw して画面でエラー表示
+// 顧客新規登録  POST /api/auth/customer/register
+//   res.data: { type, role, displayName }
 // ------------------------------------------------------------
 export async function registerCustomer({ name, phone, email, password }) {
-  await delay();
-  if (!name || !phone || !email || !password) throw new Error("すべての項目を入力してください");
-  return { customerId: 1, name, email };
+  return api.post("/api/auth/customer/register", { name, phone, email, password });
 }
 
 // ------------------------------------------------------------
-// 自分のプロフィール取得
-// TODO [BACKEND] GET /api/customers/me（要JWT）
-//   res: { customerId, name, phone, email, rankPoints, currentPoints, rank }
+// ログアウト  POST /api/auth/logout（Cookie を無効化）
+// ------------------------------------------------------------
+export async function logout() {
+  return api.post("/api/auth/logout");
+}
+
+// ------------------------------------------------------------
+// 自分のプロフィール取得  GET /api/customers/me（要JWT）
+//   res.data: { customerId, name, phone, email, rankPoints, currentPoints, rank }
 // ------------------------------------------------------------
 export async function getMyProfile() {
-  await delay();
-  return {
-    customerId: 1, name: "山田 太郎", phone: "090-1234-5678", email: "yamada@example.com",
-    rankPoints: 1500, currentPoints: 800, rank: "シルバー",
-  };
+  return api.get("/api/customers/me");
 }
 
 // ------------------------------------------------------------
-// プロフィール更新
-// TODO [BACKEND] PUT /api/customers/me（要JWT）  req: { name, phone }
+// プロフィール更新  PUT /api/customers/me（要JWT）  req: { name, phone }
 // ------------------------------------------------------------
 export async function updateMyProfile({ name, phone }) {
-  await delay();
-  return { name, phone };
+  return api.put("/api/customers/me", { name, phone });
 }
 
 // ------------------------------------------------------------
-// 自分の予約一覧
-// TODO [BACKEND] GET /api/reservations/my（要JWT）
-//   res: [ { reservationId, status, reservationDate, timeSlotLabel, partySize, tables:[番号...] } ]
+// 自分の予約一覧  GET /api/reservations/my（要JWT）
+//   res.data: { content:[...], totalElements, totalPages }
+//   画面は配列を期待するので content を返す。
 // ------------------------------------------------------------
 export async function getMyReservations() {
-  await delay();
-  return [
-    { reservationId: 42, status: "CONFIRMED", reservationDate: "2026-07-01", timeSlotLabel: "第2部 13:30〜15:30", partySize: 6,  tables: ["B02", "A07"] },
-    { reservationId: 43, status: "PENDING",   reservationDate: "2026-07-01", timeSlotLabel: "第3部 18:00〜20:00", partySize: 12, tables: ["D01", "B05", "A08"] },
-    { reservationId: 38, status: "COMPLETED", reservationDate: "2026-06-20", timeSlotLabel: "第1部 11:00〜13:00", partySize: 4,  tables: ["B05"] },
-    { reservationId: 30, status: "CANCELLED", reservationDate: "2026-06-01", timeSlotLabel: "第3部 18:00〜20:00", partySize: 2,  tables: ["A03"] },
-  ];
+  const data = await api.get("/api/reservations/my");
+  return data.content ?? data;
 }
 
 // ------------------------------------------------------------
-// 予約キャンセル
-// TODO [BACKEND] DELETE /api/reservations/{id}（要JWT・自分の予約のみ）
+// 予約キャンセル  DELETE /api/reservations/{id}（要JWT・自分の予約のみ）
 // ------------------------------------------------------------
 export async function cancelReservation(reservationId) {
-  await delay();
+  await api.del(`/api/reservations/${reservationId}`);
   return { reservationId };
 }
 
 // ------------------------------------------------------------
-// ポイント履歴
-// TODO [BACKEND] GET /api/customers/me/point-history（要JWT）
-//   res: [ { type:"EARNED"|"SPENT", pointsAmount, reason, createdAt } ]
+// ポイント履歴  GET /api/customers/me/point-history（要JWT）
+//   res.data: { content:[{type,pointsAmount,reason,createdAt}], ... }
 // ------------------------------------------------------------
 export async function getPointHistory() {
-  await delay();
-  return [
-    { type: "EARNED", pointsAmount: 100,  reason: "予約完了（予約ID: 42）", createdAt: "2026-07-01" },
-    { type: "SPENT",  pointsAmount: 500,  reason: "クーポン使用",          createdAt: "2026-06-20" },
-    { type: "EARNED", pointsAmount: 200,  reason: "予約完了（予約ID: 38）", createdAt: "2026-06-10" },
-    { type: "EARNED", pointsAmount: 1000, reason: "新規登録ボーナス",      createdAt: "2026-05-15" },
-  ];
+  const data = await api.get("/api/customers/me/point-history");
+  return data.content ?? data;
 }
 
 // ============================================================
@@ -173,162 +153,137 @@ export async function getPointHistory() {
 // ============================================================
 
 // ------------------------------------------------------------
-// スタッフ・管理者ログイン
-// TODO [BACKEND] POST /api/staff/auth/login
-//   req: { username, password } ; res: { token, userId, displayName, role }
+// スタッフ・管理者ログイン  POST /api/auth/staff/login
+//   req:  { username, password }
+//   res.data: { type, role, displayName }（トークンは Cookie で返る）
 // ------------------------------------------------------------
 export async function loginStaff({ username, password }) {
-  await delay();
-  if (!username || !password) throw new Error("ユーザー名とパスワードを入力してください");
-  return { token: "mock-staff-token", userId: 10, displayName: "田中 スタッフ", role: "STAFF" };
+  return api.post("/api/auth/staff/login", { username, password });
 }
 
 // ------------------------------------------------------------
-// 承認待ち（PENDING）予約一覧
-// TODO [BACKEND] GET /api/staff/reservations/pending（要STAFF/ADMIN JWT）
-//   res: [ { reservationId, customerName, customerPhone, partySize, timeSlotLabel, tables, expiresAt } ]
-// TODO [WS] /topic/staff/pending — 新規PENDINGをリアルタイム受信して先頭に追加
+// 承認待ち（PENDING）予約一覧  GET /api/staff/reservations/pending（要STAFF/ADMIN）
+//   res.data: [ { reservationId, customerName, customerPhone, partySize,
+//                 timeSlotLabel, tables, expiresAt } ]
+//   TODO [WS] /topic/staff/pending — 新規PENDINGをリアルタイム受信
 // ------------------------------------------------------------
 export async function getPendingReservations() {
-  await delay();
-  return [
-    { reservationId: 43, customerName: "鈴木 一郎", customerPhone: "080-0000-1111", partySize: 12, timeSlotLabel: "第3部 18:00〜20:00", tables: ["D01", "B05", "A08"], expiresAt: new Date(Date.now() + 8 * 60 * 1000).toISOString() },
-    { reservationId: 45, customerName: "佐藤 花子", customerPhone: "080-2222-3333", partySize: 10, timeSlotLabel: "第3部 18:00〜20:00", tables: ["D02", "B07"],        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() },
-  ];
+  return api.get("/api/staff/reservations/pending");
 }
 
 // ------------------------------------------------------------
 // PENDING予約の承認 / 拒否
-// TODO [BACKEND] PUT /api/staff/reservations/{id}/approve
-// TODO [BACKEND] PUT /api/staff/reservations/{id}/reject
-//   どちらも顧客へ WS /user/queue/updates で結果通知（バックエンド側）
+//   PUT /api/staff/reservations/{id}/approve → { reservationId, status:"CONFIRMED" }
+//   PUT /api/staff/reservations/{id}/reject  → data:null（CANCELLED扱い）
 // ------------------------------------------------------------
 export async function approveReservation(reservationId) {
-  await delay();
-  return { reservationId, status: "CONFIRMED" };
+  return api.put(`/api/staff/reservations/${reservationId}/approve`);
 }
 export async function rejectReservation(reservationId) {
-  await delay();
+  await api.put(`/api/staff/reservations/${reservationId}/reject`);
   return { reservationId, status: "CANCELLED" };
 }
 
 // ------------------------------------------------------------
 // ダッシュボード統計
-// ※ 専用エンドポイントは無く、本番では /api/staff/tables の集計で算出する想定。
-// TODO [BACKEND] GET /api/staff/tables を集計 → { available, reserved, occupied, occupancyRate }
+//   専用エンドポイントは無いため /api/staff/tables を集計して算出（API設計書 7.3）。
+//   res: { available, reserved, occupied, occupancyRate }
 // ------------------------------------------------------------
 export async function getDashboardStats() {
-  await delay();
-  return { available: 124, reserved: 48, occupied: 14, occupancyRate: 62 };
+  const tables = await api.get("/api/staff/tables");
+  const total = tables.length || 1;
+  const available = tables.filter((t) => t.status === "AVAILABLE").length;
+  const reserved  = tables.filter((t) => t.status === "RESERVED" || t.status === "PENDING").length;
+  const occupied  = tables.filter((t) => t.status === "OCCUPIED").length;
+  const occupancyRate = Math.round(((reserved + occupied) / total) * 100);
+  return { available, reserved, occupied, occupancyRate };
 }
 
 // ------------------------------------------------------------
-// 予約管理：全予約一覧（絞り込みはフロント側で実施）
-// TODO [BACKEND] GET /api/staff/reservations?date=&slotId=&status=&page=
-//   res: [ { reservationId, customerName, partySize, tables, status } ]
+// 予約管理：全予約一覧  GET /api/staff/reservations（要STAFF/ADMIN）
+//   クエリ: ?date=&slotId=&status=&page=&size=
+//   res.data: { content:[{reservationId,customerName,partySize,tables,status}], ... }
 // ------------------------------------------------------------
 export async function getStaffReservations() {
-  await delay();
-  return [
-    { reservationId: 42, customerName: "山田 太郎", partySize: 6,  tables: ["B02", "A07"],        status: "CONFIRMED" },
-    { reservationId: 50, customerName: "田中 健",   partySize: 2,  tables: ["A03"],               status: "OCCUPIED" },
-    { reservationId: 51, customerName: "高橋 実",   partySize: 4,  tables: ["B07"],               status: "NO_SHOW" },
-    { reservationId: 43, customerName: "鈴木 一郎", partySize: 12, tables: ["D01", "B05", "A08"], status: "PENDING" },
-    { reservationId: 38, customerName: "佐藤 花子", partySize: 4,  tables: ["B05"],               status: "COMPLETED" },
-  ];
+  const data = await api.get("/api/staff/reservations");
+  return data.content ?? data;
 }
 
 // ------------------------------------------------------------
-// 予約ステータス更新（来店=OCCUPIED / 会計=COMPLETED / 無断=NO_SHOW）
-// TODO [BACKEND] PUT /api/staff/reservations/{id}/status  req: { status }
+// 予約ステータス更新  PUT /api/staff/reservations/{id}/status  req: { status }
+//   （来店=OCCUPIED / 会計=COMPLETED / 無断=NO_SHOW / 取消=CANCELLED）
 // ------------------------------------------------------------
 export async function updateReservationStatus(reservationId, status) {
-  await delay();
+  await api.put(`/api/staff/reservations/${reservationId}/status`, { status });
   return { reservationId, status };
 }
 
 // ------------------------------------------------------------
-// テーブル状態ボード
-// TODO [BACKEND] GET /api/staff/tables?date=&slotId=
-//   res: [ { tableId, tableNumber, capacity, zone, status } ]
-// TODO [WS] /topic/tables — テーブル状態変化をリアルタイム反映（再読込なし）
+// テーブル状態ボード  GET /api/staff/tables?date=&slotId=（要STAFF/ADMIN）
+//   res.data: [ { tableId, tableNumber, capacity, zone, status, reservationId } ]
+//   TODO [WS] /topic/tables — テーブル状態変化をリアルタイム反映
 // ------------------------------------------------------------
 export async function getTables() {
-  await delay();
-  const mk = (prefix, capacity, zone, count, statuses) =>
-    Array.from({ length: count }, (_, i) => {
-      const num = `${prefix}${String(i + 1).padStart(2, "0")}`;
-      return { tableId: num, tableNumber: num, capacity, zone, status: statuses[i % statuses.length] };
-    });
-  return [
-    ...mk("C", 1, "COUNTER", 6, ["AVAILABLE", "AVAILABLE", "RESERVED", "OCCUPIED", "AVAILABLE", "AVAILABLE"]),
-    ...mk("A", 2, "TABLE_2", 6, ["RESERVED", "AVAILABLE", "OCCUPIED", "PENDING", "AVAILABLE", "RESERVED"]),
-    ...mk("B", 4, "TABLE_4", 6, ["AVAILABLE", "RESERVED", "OCCUPIED", "AVAILABLE", "RESERVED", "AVAILABLE"]),
-    ...mk("D", 8, "TABLE_8", 6, ["PENDING", "AVAILABLE", "RESERVED", "OCCUPIED", "AVAILABLE", "AVAILABLE"]),
-  ];
+  return api.get("/api/staff/tables");
 }
 
 // ============================================================
 //  管理者（ADMIN）— マスタ管理
 // ============================================================
-const newId = () => Math.floor(Math.random() * 1000) + 100;
 
 // ----- スタッフ管理 -----
-// TODO [BACKEND] GET /api/admin/users
+// ※ サーバーは userName（N大文字）、画面は username を使うため相互変換する。
 export async function getStaffUsers() {
-  await delay();
-  return [
-    { id: 10, username: "staff01", displayName: "田中 スタッフ", role: "STAFF", isActive: true },
-    { id: 11, username: "admin01", displayName: "佐々木 管理者", role: "ADMIN", isActive: true },
-    { id: 12, username: "staff02", displayName: "渡辺 スタッフ", role: "STAFF", isActive: false },
-  ];
+  const data = await api.get("/api/admin/users");
+  return data.map((u) => ({ ...u, username: u.userName }));
 }
-// TODO [BACKEND] POST /api/admin/users
-export async function createStaffUser(data) { await delay(); return { id: newId(), isActive: true, ...data }; }
-// TODO [BACKEND] PUT /api/admin/users/{id}（無効化は DELETE /api/admin/users/{id} で is_active=false）
-export async function updateStaffUser(id, data) { await delay(); return { id, ...data }; }
+export async function createStaffUser({ username, ...rest }) {
+  const u = await api.post("/api/admin/users", { userName: username, ...rest });
+  return { ...u, username: u.userName };
+}
+export async function updateStaffUser(id, { username, ...rest }) {
+  const body = username === undefined ? rest : { userName: username, ...rest };
+  const u = await api.put(`/api/admin/users/${id}`, body);
+  return { ...u, username: u.userName };
+}
 
 // ----- テーブル管理 -----
-// TODO [BACKEND] GET /api/admin/tables
 export async function getAdminTables() {
-  await delay();
-  return [
-    { id: 1, tableNumber: "B02", capacity: 4, zone: "TABLE_4", isActive: true },
-    { id: 2, tableNumber: "C01", capacity: 1, zone: "COUNTER", isActive: true },
-    { id: 3, tableNumber: "A07", capacity: 2, zone: "TABLE_2", isActive: true },
-    { id: 4, tableNumber: "D12", capacity: 8, zone: "TABLE_8", isActive: false },
-  ];
+  return api.get("/api/admin/tables");
 }
-// TODO [BACKEND] POST /api/admin/tables
-export async function createTable(data) { await delay(); return { id: newId(), isActive: true, ...data }; }
-// TODO [BACKEND] PUT /api/admin/tables/{id}
-export async function updateTable(id, data) { await delay(); return { id, ...data }; }
+export async function createTable(data) {
+  return api.post("/api/admin/tables", data);
+}
+export async function updateTable(id, data) {
+  return api.put(`/api/admin/tables/${id}`, data);
+}
 
 // ----- 時間帯管理 -----
-// TODO [BACKEND] GET /api/admin/time-slots
+// ※ サーバーは description を持たないため、送信時は除外する。
 export async function getAdminTimeSlots() {
-  await delay();
-  return [
-    { id: 1, slotLabel: "第1部 11:00〜13:00", description: "ランチ営業セッション",     startTime: "11:00", endTime: "13:00", displayOrder: 1, isActive: true },
-    { id: 2, slotLabel: "第2部 13:30〜15:30", description: "続きのランチ営業セッション", startTime: "13:30", endTime: "15:30", displayOrder: 2, isActive: true },
-    { id: 3, slotLabel: "第3部 18:00〜20:00", description: "ディナー前半セッション",    startTime: "18:00", endTime: "20:00", displayOrder: 3, isActive: true },
-    { id: 4, slotLabel: "第4部 20:30〜22:30", description: "ディナー後半セッション",    startTime: "20:30", endTime: "22:30", displayOrder: 4, isActive: false },
-  ];
+  return api.get("/api/admin/time-slots");
 }
-// TODO [BACKEND] POST /api/admin/time-slots
-export async function createTimeSlot(data) { await delay(); return { id: newId(), isActive: true, ...data }; }
-// TODO [BACKEND] PUT /api/admin/time-slots/{id}
-export async function updateTimeSlot(id, data) { await delay(); return { id, ...data }; }
+export async function createTimeSlot({ description, ...rest }) {
+  return api.post("/api/admin/time-slots", rest);
+}
+export async function updateTimeSlot(id, { description, ...rest }) {
+  return api.put(`/api/admin/time-slots/${id}`, rest);
+}
 
 // ------------------------------------------------------------
 // 本日の予約状況（ダッシュボード用サマリ）
-// TODO [BACKEND] GET /api/staff/reservations?date=today&limit=10
+//   GET /api/staff/reservations?date=today&size=10 を利用。
+//   専用の time フィールドが無い場合は timeSlotLabel で代用。
 // ------------------------------------------------------------
 export async function getTodayReservations() {
-  await delay();
-  return [
-    { reservationId: 60, time: "18:00", customerName: "高橋 健二", partySize: 4, status: "CONFIRMED" },
-    { reservationId: 61, time: "18:30", customerName: "渡辺 まり", partySize: 2, status: "OCCUPIED"  },
-    { reservationId: 62, time: "19:00", customerName: "伊藤 博",   partySize: 6, status: "CONFIRMED" },
-  ];
+  const today = new Date().toLocaleDateString("sv-SE"); // "YYYY-MM-DD"
+  const data = await api.get("/api/staff/reservations", { params: { date: today, size: 10 } });
+  const list = data.content ?? data;
+  return list.map((r) => ({
+    reservationId: r.reservationId,
+    time: r.time ?? r.timeSlotLabel ?? "",
+    customerName: r.customerName,
+    partySize: r.partySize,
+    status: r.status,
+  }));
 }

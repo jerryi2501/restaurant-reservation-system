@@ -28,9 +28,8 @@ export default function LoginPage() {
     setError("");
     try {
       const data = await loginCustomer({ email, password });
-      localStorage.setItem("token", data.token);
-      // ユーザー情報を store に保存（画面全体で参照できるように）
-      setAuth({ name: data.name, customerId: data.customerId, role: "CUSTOMER" }, data.token);
+      // 認証トークンは Cookie で管理されるため、ここでは表示用の情報だけ保存する
+      setAuth({ name: data.displayName, role: data.role });
       navigate(from, { replace: true }); // 元の画面 or /mypage へ
     } catch (err) {
       setError(err.message);

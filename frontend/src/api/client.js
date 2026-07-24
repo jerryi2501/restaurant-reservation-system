@@ -4,16 +4,15 @@
 // 画面側には data だけを返す（失敗時は message を throw）。
 import axios from "axios";
 
+// baseURL: 環境変数 VITE_API_BASE があればそれを使い、無ければ本番 Railway を既定にする。
+// ローカルでバックエンドを動かす場合は frontend/.env に VITE_API_BASE=http://localhost:8080 を置く。
 const instance = axios.create({
-  baseURL: "http://localhost:8080", // 開発用。本番は環境変数 import.meta.env.VITE_API_BASE に。
+  baseURL: import.meta.env.VITE_API_BASE || "https://restaurant-spring.up.railway.app",
   headers: { "Content-Type": "application/json" },
-});
-
-// リクエスト前：localStorage の JWT を Authorization ヘッダーに自動付与
-instance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+  // 認証は HttpOnly Cookie（access_token）で行うため、Cookie を送受信する。
+  // ※ クロスサイト（Vercel↔Railway）で Cookie を送るには、サーバー側で
+  //   Cookie に SameSite=None; Secure を付ける必要がある。
+  withCredentials: true,
 });
 
 // レスポンス後：{ success, data, message } を判定し、data だけ返す

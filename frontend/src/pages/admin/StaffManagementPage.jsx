@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { getStaffUsers, createStaffUser, updateStaffUser } from "../../api/mockApi";
 
-const EMPTY = { username: "", displayName: "", role: "STAFF" };
+const EMPTY = { username: "", password: "", displayName: "", role: "STAFF" };
 
 export default function StaffManagementPage() {
   const [list, setList]           = useState([]);
@@ -24,13 +24,17 @@ export default function StaffManagementPage() {
   useEffect(() => { getStaffUsers().then(setList); }, []);
 
   function openCreate() { setEditingId(null); setForm(EMPTY); setOpen(true); }
-  function openEdit(u)  { setEditingId(u.id); setForm({ username: u.username, displayName: u.displayName, role: u.role }); setOpen(true); }
+  // 編集時はパスワードを空にしておく（空 = 変更しない）
+  function openEdit(u)  { setEditingId(u.id); setForm({ username: u.username, password: "", displayName: u.displayName, role: u.role }); setOpen(true); }
   function change(e)    { const { name, value } = e.target; setForm((p) => ({ ...p, [name]: value })); }
 
   async function handleConfirm() {
     if (editingId) {
-      await updateStaffUser(editingId, form);
-      setList((prev) => prev.map((u) => (u.id === editingId ? { ...u, ...form } : u)));
+      // パスワード未入力なら送らない（サーバー側で既存パスワードを維持）
+      const { password, ...rest } = form;
+      const body = password ? { ...rest, password } : rest;
+      const updated = await updateStaffUser(editingId, body);
+      setList((prev) => prev.map((u) => (u.id === editingId ? { ...u, ...updated } : u)));
     } else {
       const created = await createStaffUser(form);
       setList((prev) => [...prev, created]);
@@ -38,13 +42,16 @@ export default function StaffManagementPage() {
     setOpen(false);
   }
 
+  // サーバーは部分更新に対応していないため、全項目を送る（パスワードは除く＝変更しない）
   async function toggleActive(u) {
-    await updateStaffUser(u.id, { isActive: !u.isActive });
+    await updateStaffUser(u.id, {
+      username: u.username, displayName: u.displayName, role: u.role, isActive: !u.isActive,
+    });
     setList((prev) => prev.map((x) => (x.id === u.id ? { ...x, isActive: !x.isActive } : x)));
   }
 
   const filtered = search
-    ? list.filter((u) => u.username.includes(search) || u.displayName.includes(search))
+    ? list.filter((u) => (u.username ?? "").includes(search) || (u.displayName ?? "").includes(search))
     : list;
 
   const totalCount   = list.length;
@@ -157,6 +164,13 @@ export default function StaffManagementPage() {
           <div className="grid gap-1.5">
             <Label htmlFor="username">ユーザー名</Label>
             <Input id="username" name="username" value={form.username} onChange={change} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="password">
+              パスワード{editingId && <span className="font-normal text-muted-foreground">（変更する場合のみ入力）</span>}
+            </Label>
+            <Input id="password" name="password" type="password" value={form.password} onChange={change}
+              placeholder={editingId ? "空欄なら変更しません" : "8文字以上"} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="displayName">表示名</Label>

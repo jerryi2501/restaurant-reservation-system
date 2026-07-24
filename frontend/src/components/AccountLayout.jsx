@@ -5,6 +5,7 @@ import { User, CalendarCheck, Coins, LogOut } from "lucide-react";
 import Header from "./Header";
 import Footer from "./Footer";
 import { useAuthStore } from "../store";
+import { logout } from "../api/mockApi";
 
 const NAV = [
   { to: "/mypage",              label: "プロフィール",   icon: User,          end: true },
@@ -16,11 +17,14 @@ export default function AccountLayout({ children }) {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
-  function handleLogout() {
-    clearAuth();                       // Zustand のログイン状態をクリア
-    localStorage.removeItem("token");  // JWT も削除
+  async function handleLogout() {
+    try {
+      await logout();                  // サーバー側の Cookie を無効化
+    } catch {
+      // ログアウトAPIが失敗してもクライアント側の状態はクリアする
+    }
+    clearAuth();                       // Zustand + localStorage のログイン状態をクリア
     navigate("/");
-    // TODO [BACKEND] POST /api/customer/auth/logout（サーバー側の無効化が必要なら）
   }
 
   return (
