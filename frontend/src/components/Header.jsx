@@ -1,6 +1,8 @@
 // 全画面共通のグローバルナビ
 // props: active — 現在ページに対応するメニュー（"reserve" のとき「ご予約」を強調）
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuthStore } from "../store";
+import { logout } from "../api/mockApi";
 
 const NAV_ITEMS = [
   { key: "about",  label: "店舗案内",     to: "/about" },
@@ -9,6 +11,16 @@ const NAV_ITEMS = [
 ];
 
 export default function Header({ active }) {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);      // ログイン中なら user が入っている
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+
+  async function handleLogout() {
+    try { await logout(); } catch { /* Cookie無効化に失敗してもクライアントはクリア */ }
+    clearAuth();
+    navigate("/");
+  }
+
   return (
     <header style={s.header}>
       <div style={s.inner}>
@@ -22,10 +34,19 @@ export default function Header({ active }) {
           ))}
         </nav>
 
-        {/* TODO [AUTH]: ログイン済みなら「ログイン/新規登録」→「マイページ/ログアウト」に切替 */}
+        {/* ログイン状態でヘッダー右側を切り替える */}
         <div style={s.right}>
-          <Link to="/login" style={s.loginLink}>ログイン</Link>
-          <Link to="/register" style={s.registerBtn}>新規登録</Link>
+          {user ? (
+            <>
+              <Link to="/mypage" style={s.loginLink}>マイページ</Link>
+              <button type="button" onClick={handleLogout} style={s.logoutBtn}>ログアウト</button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" style={s.loginLink}>ログイン</Link>
+              <Link to="/register" style={s.registerBtn}>新規登録</Link>
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -48,5 +69,9 @@ const s = {
   registerBtn: {
     border: "1px solid var(--color-primary)", color: "var(--color-primary)", background: "transparent",
     borderRadius: "var(--radius)", padding: "8px 16px", fontSize: 14, textDecoration: "none",
+  },
+  logoutBtn: {
+    border: "1px solid var(--color-primary)", color: "var(--color-primary)", background: "transparent",
+    borderRadius: "var(--radius)", padding: "8px 16px", fontSize: 14, cursor: "pointer", fontFamily: "inherit",
   },
 };
