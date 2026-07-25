@@ -45,8 +45,10 @@ export default function ReservationCompletePage() {
             </p>
           )}
 
-          {/* TODO [AUTH]: ログイン会員のみ表示（ポイント付与はバックエンドで記録） */}
-          <p style={s.point}>ログイン会員様には100ポイントを付与しました</p>
+          {/* ポイント付与はログイン会員のみ（ゲスト予約では表示しない） */}
+          {user && (
+            <p style={s.point}>100ポイントを付与しました</p>
+          )}
 
           <div style={ui.rowBtns}>
             <button type="button" style={ui.ghostBtn} onClick={goToMyReservations}>マイ予約を見る</button>
