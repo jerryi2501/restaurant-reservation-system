@@ -1,8 +1,9 @@
 // SC-C09 マイページ（ダッシュボード）/ 権限: CUSTOMER
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Coins, Award, Crown, Clock, CalendarPlus, Sparkles, ArrowRight } from "lucide-react";
+import { Coins, Award, Clock, CalendarPlus, Sparkles, ArrowRight } from "lucide-react";
 import AccountLayout from "../../components/AccountLayout";
+import RankMedals from "../../components/RankMedals";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { getMyProfile, fetchTimeSlots } from "../../api/mockApi";
@@ -75,11 +76,13 @@ export default function ProfilePage() {
       </Card>
 
       {/* 統計タイル */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <StatTile icon={Coins} label="保有ポイント" value={`${profile.currentPoints} pt`} />
         <StatTile icon={Award} label="累計獲得"     value={`${profile.rankPoints} pt`} />
-        <StatTile icon={Crown} label="会員ランク"   value={profile.rank} />
       </div>
+
+      {/* 会員ランク（銅/銀/金メダル・ホバーで次ランクまでのpt） */}
+      <RankMedals rank={profile.rank} points={profile.rankPoints} />
     </AccountLayout>
   );
 }
