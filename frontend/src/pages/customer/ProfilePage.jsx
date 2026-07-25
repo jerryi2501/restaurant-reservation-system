@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Coins, Award, Clock, CalendarPlus, Sparkles, ArrowRight } from "lucide-react";
 import AccountLayout from "../../components/AccountLayout";
-import RankMedals from "../../components/RankMedals";
+import { Medal, tierByPoints } from "../../components/RankMedals";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { getMyProfile, fetchTimeSlots } from "../../api/mockApi";
@@ -25,6 +25,8 @@ export default function ProfilePage() {
     );
   }
 
+  const tier = tierByPoints(profile.rankPoints); // 累計ptから現在ランクを算出
+
   return (
     <AccountLayout>
       <h1 className="text-2xl font-semibold mb-6">マイページ</h1>
@@ -38,7 +40,14 @@ export default function ProfilePage() {
           <div>
             <p className="font-semibold flex items-center gap-2 flex-wrap">
               {profile.name} 様
-              <span className="text-xs font-medium bg-white/20 rounded-full px-2 py-0.5">{profile.rank}会員</span>
+              {/* ランクは累計ptから算出＝ptが増えると自動で昇格。ホバーで次ランクまでのpt */}
+              <span
+                className="inline-flex items-center gap-1 text-xs font-medium bg-white/20 rounded-full pl-1 pr-2 py-0.5"
+                title={tier.next ? `あと${tier.remain.toLocaleString()}ptで${tier.next.label}会員` : "最高ランクです"}
+              >
+                <Medal c={tier.c} size={18} />
+                {tier.label}会員
+              </span>
             </p>
             <p className="text-sm text-white/80 mt-0.5">いつもご利用ありがとうございます</p>
           </div>
@@ -50,12 +59,12 @@ export default function ProfilePage() {
 
       {/* 次回予約への誘導 */}
       <Card className="mb-6">
-        <CardContent className="flex items-center justify-between gap-4 pt-6 flex-wrap">
+        <CardContent className="pt-6">
           <div className="flex items-start gap-3">
             <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <Sparkles className="size-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="font-semibold">次回のご予約はいかがですか？</p>
               <p className="text-sm text-muted-foreground mt-0.5 mb-2">
                 お好きな日時の空席をリアルタイムでご確認いただけます。
@@ -69,20 +78,20 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-          <Link to="/" className={buttonVariants()}>
-            空席を確認する<ArrowRight className="size-4" />
-          </Link>
+          {/* ボタンは独立した行に置き、テキストと重ならないようにする */}
+          <div className="mt-4 flex justify-end">
+            <Link to="/" className={buttonVariants()}>
+              空席を確認する<ArrowRight className="size-4" />
+            </Link>
+          </div>
         </CardContent>
       </Card>
 
       {/* 統計タイル */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatTile icon={Coins} label="保有ポイント" value={`${profile.currentPoints} pt`} />
         <StatTile icon={Award} label="累計獲得"     value={`${profile.rankPoints} pt`} />
       </div>
-
-      {/* 会員ランク（銅/銀/金メダル・ホバーで次ランクまでのpt） */}
-      <RankMedals rank={profile.rank} points={profile.rankPoints} />
     </AccountLayout>
   );
 }

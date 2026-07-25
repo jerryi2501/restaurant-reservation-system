@@ -4,11 +4,20 @@
 // props: rank（現在ランク "BRONZE"|"SILVER"|"GOLD" または 日本語ラベル）, points（累計獲得pt）
 import { Award } from "lucide-react";
 
-const TIERS = [
+export const TIERS = [
   { key: "BRONZE", label: "ブロンズ", min: 0,    c: { main: "#E0A46A", dark: "#9C5A20", disc: "#EBBE90", rib: "#C77E3E", ribD: "#A9601F" } },
   { key: "SILVER", label: "シルバー", min: 1000, c: { main: "#CDD4DB", dark: "#8A939C", disc: "#E4E9ED", rib: "#B4BCC5", ribD: "#98A2AB" } },
   { key: "GOLD",   label: "ゴールド", min: 3000, c: { main: "#F4C951", dark: "#C79318", disc: "#FBE08C", rib: "#E6A817", ribD: "#C79318" } },
 ];
+
+// 累計獲得ptから現在ランクを算出（ptが閾値に達すると自動で昇格）。
+// 併せて次ランクと必要pt残りも返す。
+export function tierByPoints(points = 0) {
+  let idx = 0;
+  TIERS.forEach((t, i) => { if (points >= t.min) idx = i; });
+  const next = TIERS[idx + 1];
+  return { ...TIERS[idx], next, remain: next ? Math.max(0, next.min - points) : 0 };
+}
 
 // 12角のロゼット（星形）パスを一度だけ生成
 function buildStar() {
@@ -24,9 +33,10 @@ function buildStar() {
 }
 const STAR = buildStar();
 
-function Medal({ c }) {
+export function Medal({ c, size = 63 }) {
+  const w = Math.round((size * 100) / 138);
   return (
-    <svg viewBox="0 0 100 138" width="46" height="63" aria-hidden="true">
+    <svg viewBox="0 0 100 138" width={w} height={size} aria-hidden="true">
       <path d="M40,52 L60,52 L60,112 L50,101 L40,112 Z" fill={c.rib} />
       <path d="M40,52 L50,52 L50,101 L40,112 Z" fill={c.ribD} />
       <path d={STAR} fill={c.main} />
