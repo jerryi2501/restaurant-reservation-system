@@ -78,9 +78,10 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-          {/* ボタンは独立した行に置き、テキストと重ならないようにする */}
+          {/* ボタンは独立した行に置き、テキストと重ならないようにする。
+              文字色は inline 指定（index.css の a{color} が layer より優先されるため） */}
           <div className="mt-4 flex justify-end">
-            <Link to="/" className={buttonVariants()}>
+            <Link to="/" className={buttonVariants()} style={{ color: "#fff" }}>
               空席を確認する<ArrowRight className="size-4" />
             </Link>
           </div>
