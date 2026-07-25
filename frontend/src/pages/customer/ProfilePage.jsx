@@ -1,39 +1,20 @@
-// SC-C09 マイページ（会員プロフィール）/ 権限: CUSTOMER
+// SC-C09 マイページ（ダッシュボード）/ 権限: CUSTOMER
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Coins, Award, Crown, Clock, CalendarPlus, Sparkles, ArrowRight } from "lucide-react";
 import AccountLayout from "../../components/AccountLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { getMyProfile, updateMyProfile } from "../../api/mockApi";
+import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { getMyProfile, fetchTimeSlots } from "../../api/mockApi";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
-  const [name, setName]   = useState("");
-  const [phone, setPhone] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [slots, setSlots]     = useState([]);
 
-  // マウント時にプロフィールを取得（TODO [BACKEND] は mockApi.getMyProfile 内）
   useEffect(() => {
-    getMyProfile().then((p) => {
-      setProfile(p);
-      setName(p.name);
-      setPhone(p.phone);
-    });
+    getMyProfile().then(setProfile);
+    fetchTimeSlots().then((s) => setSlots(s.slice(0, 3)));
   }, []);
-
-  async function handleSave(e) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await updateMyProfile({ name, phone });
-      alert("プロフィールを更新しました");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   if (!profile) {
     return (
@@ -47,52 +28,70 @@ export default function ProfilePage() {
     <AccountLayout>
       <h1 className="text-2xl font-semibold mb-6">マイページ</h1>
 
-      {/* 会員サマリー */}
-      <Card className="mb-6">
-        <CardContent className="flex items-center gap-4 pt-6">
-          <Avatar className="size-12">
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {profile.name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-medium flex items-center gap-2">
-              {profile.name} 様
-              <Badge variant="secondary">{profile.rank}会員</Badge>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              保有 {profile.currentPoints}pt ／ 累計 {profile.rankPoints}pt
-            </p>
+      {/* ヒーロー：会員サマリー */}
+      <div className="rounded-xl bg-primary text-primary-foreground p-6 mb-6 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <div className="size-12 rounded-full bg-white/15 flex items-center justify-center text-lg font-bold">
+            {profile.name.charAt(0)}
           </div>
+          <div>
+            <p className="font-semibold flex items-center gap-2 flex-wrap">
+              {profile.name} 様
+              <span className="text-xs font-medium bg-white/20 rounded-full px-2 py-0.5">{profile.rank}会員</span>
+            </p>
+            <p className="text-sm text-white/80 mt-0.5">いつもご利用ありがとうございます</p>
+          </div>
+        </div>
+        <Link to="/" className={buttonVariants({ variant: "secondary" })}>
+          <CalendarPlus className="size-4" />予約する
+        </Link>
+      </div>
+
+      {/* 次回予約への誘導 */}
+      <Card className="mb-6">
+        <CardContent className="flex items-center justify-between gap-4 pt-6 flex-wrap">
+          <div className="flex items-start gap-3">
+            <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Sparkles className="size-4" />
+            </div>
+            <div>
+              <p className="font-semibold">次回のご予約はいかがですか？</p>
+              <p className="text-sm text-muted-foreground mt-0.5 mb-2">
+                お好きな日時の空席をリアルタイムでご確認いただけます。
+              </p>
+              <div className="flex flex-col gap-1">
+                {slots.map((s) => (
+                  <span key={s.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Clock className="size-3.5" />{s.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <Link to="/" className={buttonVariants()}>
+            空席を確認する<ArrowRight className="size-4" />
+          </Link>
         </CardContent>
       </Card>
 
-      {/* プロフィール編集 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>プロフィール編集</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSave} className="flex flex-col gap-4 max-w-sm">
-            <div className="grid gap-2">
-              <Label htmlFor="name">お名前</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="phone">電話番号</Label>
-              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">メールアドレス</Label>
-              {/* メールは変更不可（disabled） */}
-              <Input id="email" value={profile.email} disabled />
-            </div>
-            <Button type="submit" disabled={saving} className="w-fit">
-              {saving ? "更新中…" : "更新する"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      {/* 統計タイル */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatTile icon={Coins} label="保有ポイント" value={`${profile.currentPoints} pt`} />
+        <StatTile icon={Award} label="累計獲得"     value={`${profile.rankPoints} pt`} />
+        <StatTile icon={Crown} label="会員ランク"   value={profile.rank} />
+      </div>
     </AccountLayout>
+  );
+}
+
+function StatTile({ icon: Icon, label, value }) {
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-center text-center gap-1 py-6">
+        <Icon className="size-5 text-primary mb-1" />
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-lg font-bold">{value}</span>
+      </CardContent>
+    </Card>
   );
 }

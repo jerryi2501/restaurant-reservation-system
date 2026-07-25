@@ -14,6 +14,7 @@ const RegisterPage            = lazy(() => import("./pages/customer/RegisterPage
 const ProfilePage             = lazy(() => import("./pages/customer/ProfilePage"));             // SC-C09
 const MyReservationsPage      = lazy(() => import("./pages/customer/MyReservationsPage"));      // SC-C10
 const PointHistoryPage        = lazy(() => import("./pages/customer/PointHistoryPage"));        // SC-C11
+const SettingsPage            = lazy(() => import("./pages/customer/SettingsPage"));            // SC-C09b
 
 // スタッフ（Staff）
 const StaffLoginPage           = lazy(() => import("./pages/staff/StaffLoginPage"));            // SC-S01
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/mypage"              element={<ProfilePage />} />
           <Route path="/mypage/reservations" element={<MyReservationsPage />} />
           <Route path="/mypage/points"       element={<PointHistoryPage />} />
+          <Route path="/mypage/settings"     element={<SettingsPage />} />
 
           {/* スタッフ */}
           <Route path="/staff/login"        element={<StaffLoginPage />} />

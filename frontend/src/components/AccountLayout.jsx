@@ -1,7 +1,7 @@
 // マイページ共通レイアウト：ヘッダー + サイドナビ + 内容 + フッター
 // 使い方: <AccountLayout> ...ページ内容... </AccountLayout>
 import { NavLink, useNavigate } from "react-router-dom";
-import { User, CalendarCheck, Coins, LogOut } from "lucide-react";
+import { User, CalendarCheck, Coins, Settings, LogOut } from "lucide-react";
 import Header from "./Header";
 import Footer from "./Footer";
 import { useAuthStore } from "../store";
@@ -11,6 +11,7 @@ const NAV = [
   { to: "/mypage",              label: "プロフィール",   icon: User,          end: true },
   { to: "/mypage/reservations", label: "予約一覧",       icon: CalendarCheck },
   { to: "/mypage/points",       label: "ポイント履歴",   icon: Coins },
+  { to: "/mypage/settings",     label: "設定",           icon: Settings },
 ];
 
 export default function AccountLayout({ children }) {
