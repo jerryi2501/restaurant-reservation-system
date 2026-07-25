@@ -41,6 +41,8 @@ export async function previewReservation({ reservationDate, timeSlotId, partySiz
       return {
         // tableIds はサーバーが直接返す。無ければ tables から取り出す。
         tableIds: c.tableIds ?? tables.map((t) => t.tableId),
+        // 各テーブルの詳細（番号・定員）。C02のチップ表示に使う。
+        tables,
         // サーバーが label / tableCount を返さないため、無い場合はこちらで生成する。
         label: c.label ?? tables.map((t) => `${t.capacity}人用`).join(" + "),
         tableCount: c.tableCount ?? tables.length,

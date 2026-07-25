@@ -1,16 +1,29 @@
 // SC-C02 テーブル組み合わせ選択画面 ／ 権限: GUEST / CUSTOMER
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Armchair, Check } from "lucide-react";
 import Layout from "../../components/Layout";
-import { ui } from "../../styles/ui";
+import { Button } from "@/components/ui/button";
 
-// TODO [BACKEND]: 通常は SC-C01 の preview 結果が location.state で渡る。
-//   直接URLアクセス時のフォールバック用モック（本番では "/" へリダイレクト推奨）。
+// 直接URLアクセス時のフォールバック（本番では "/" へリダイレクト推奨）
 const MOCK_STATE = {
   query: { reservationDate: "2026-07-01", timeSlotId: 2, timeSlotLabel: "第2部 13:30〜15:30", partySize: 6 },
   combinations: [
-    { tableIds: [2, 5],    label: "4人用 + 2人用",        tableCount: 2, waste: 0, requiresApproval: false },
-    { tableIds: [3, 7, 8], label: "4人用 + カウンターx2", tableCount: 3, waste: 0, requiresApproval: false },
+    {
+      tableIds: [8, 12], label: "4人用 + 2人用", tableCount: 2, waste: 0, requiresApproval: false,
+      tables: [
+        { tableId: 8, tableNumber: "B4-1", capacity: 4 },
+        { tableId: 12, tableNumber: "A2-1", capacity: 2 },
+      ],
+    },
+    {
+      tableIds: [5, 6, 7], label: "2人用×3", tableCount: 3, waste: 0, requiresApproval: false,
+      tables: [
+        { tableId: 5, tableNumber: "B2-1", capacity: 2 },
+        { tableId: 6, tableNumber: "B2-2", capacity: 2 },
+        { tableId: 7, tableNumber: "B2-3", capacity: 2 },
+      ],
+    },
   ],
 };
 
@@ -19,67 +32,93 @@ export default function CombinationsPage() {
   const location = useLocation();
   const { query, combinations } = location.state ?? MOCK_STATE;
 
-  // waste 昇順にソート（画面設計書の仕様）
+  // waste 昇順にソート（画面設計書の仕様：無駄席が少ない順）
   const sorted = [...combinations].sort((a, b) => a.waste - b.waste);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const hasMultiTable = sorted.some((c) => c.tableCount >= 2);
 
   function handleNext() {
-    const selected = sorted[selectedIdx];
-    navigate("/reserve/info", { state: { query, selected } });
+    navigate("/reserve/info", { state: { query, selected: sorted[selectedIdx] } });
   }
 
   return (
     <Layout active="reserve">
-      <div style={ui.narrow}>
-        <p style={s.crumb}>{query.reservationDate} {query.timeSlotLabel} {query.partySize}名</p>
-        <h1 style={ui.h1}>ご利用いただける席の組み合わせ</h1>
+      <div className="max-w-2xl mx-auto">
+        <p className="text-sm text-muted-foreground mb-1">
+          {query.reservationDate} ／ {query.timeSlotLabel} ／ {query.partySize}名
+        </p>
+        <h1 className="text-2xl font-semibold mb-5">ご利用いただける席の組み合わせ</h1>
 
-        <div style={s.list}>
+        <div className="flex flex-col gap-3">
           {sorted.map((c, i) => {
             const on = i === selectedIdx;
+            const tables = c.tables ?? [];
+            const totalSeats = tables.reduce((s, t) => s + t.capacity, 0);
             return (
-              <button key={i} type="button" onClick={() => setSelectedIdx(i)}
-                style={{ ...s.option, borderColor: on ? "var(--color-primary)" : "var(--color-border)",
-                         boxShadow: on ? "0 0 0 1px var(--color-primary)" : "none" }}>
-                <span style={s.radio}>{on ? "●" : "○"}</span>
-                <span style={s.optBody}>
-                  <span style={s.optTitle}>{c.label}</span>
-                  <span style={s.optSub}> {c.tableCount}卓・無駄{c.waste}席</span>
-                  <span style={s.optTables}>テーブル: {c.tableIds.join(", ")}</span>
-                </span>
+              <button
+                key={i}
+                type="button"
+                onClick={() => setSelectedIdx(i)}
+                className={`text-left rounded-xl border p-4 transition ${
+                  on
+                    ? "border-primary ring-1 ring-primary bg-primary/5"
+                    : "border-border hover:border-primary/40 bg-background"
+                }`}
+              >
+                {/* ヘッダー：選択マーク + ラベル + 無駄席バッジ */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`size-5 rounded-full border flex items-center justify-center shrink-0 ${
+                        on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
+                      }`}
+                    >
+                      {on && <Check className="size-3.5" />}
+                    </span>
+                    <span className="font-semibold">{c.label}</span>
+                  </div>
+                  <span
+                    className={`text-xs font-medium rounded-full px-2 py-0.5 shrink-0 ${
+                      c.waste === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    無駄{c.waste}席
+                  </span>
+                </div>
+
+                {/* テーブルチップ：実際のテーブル番号 + 定員 */}
+                <div className="flex flex-wrap gap-2">
+                  {tables.map((t) => (
+                    <span
+                      key={t.tableId}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm"
+                    >
+                      <Armchair className="size-4 text-primary" />
+                      <span className="font-medium">{t.tableNumber}</span>
+                      <span className="text-muted-foreground text-xs">{t.capacity}名</span>
+                    </span>
+                  ))}
+                </div>
+
+                <p className="text-xs text-muted-foreground mt-3">
+                  合計{totalSeats}席 ・ {c.tableCount}卓
+                </p>
               </button>
             );
           })}
         </div>
 
         {hasMultiTable && (
-          <p style={s.warn}>⚠ 複数テーブルの場合、席が離れることがあります</p>
+          <p className="text-sm mt-4 rounded-lg px-3 py-2" style={{ color: "#854F0B", background: "#FAEEDA" }}>
+            ⚠ 複数テーブルの場合、席が離れることがあります
+          </p>
         )}
 
-        <div style={ui.rowBtns}>
-          <button type="button" style={ui.ghostBtn} onClick={() => navigate(-1)}>戻る</button>
-          <button type="button" style={{ ...ui.primaryBtn, flex: 1 }} onClick={handleNext}>
-            この席で予約へ進む
-          </button>
+        <div className="flex gap-3 mt-6">
+          <Button type="button" variant="outline" onClick={() => navigate(-1)}>戻る</Button>
+          <Button type="button" className="flex-1" onClick={handleNext}>この席で予約へ進む</Button>
         </div>
       </div>
     </Layout>
   );
 }
-
-const s = {
-  crumb: { fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 8px" },
-  list: { display: "flex", flexDirection: "column", gap: 12, margin: "20px 0" },
-  option: {
-    display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px",
-    border: "1px solid var(--color-border)", borderRadius: "var(--radius)",
-    background: "var(--color-bg)", cursor: "pointer",
-  },
-  radio: { color: "var(--color-primary)", fontSize: 14, lineHeight: 1.7 },
-  optBody: { flex: 1, textAlign: "left" },
-  optTitle: { fontWeight: 600, fontSize: 15 },
-  optSub: { color: "var(--color-text-secondary)", fontSize: 13 },
-  optTables: { display: "block", color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4 },
-  warn: { fontSize: 13, color: "#854F0B", background: "#FAEEDA", borderRadius: "var(--radius)", padding: "8px 12px", margin: "0 0 16px" },
-};
