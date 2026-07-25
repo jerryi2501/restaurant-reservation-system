@@ -53,7 +53,6 @@ export default function CombinationsPage() {
           {sorted.map((c, i) => {
             const on = i === selectedIdx;
             const tables = c.tables ?? [];
-            const totalSeats = tables.reduce((s, t) => s + t.capacity, 0);
             return (
               <button
                 key={i}
@@ -65,44 +64,30 @@ export default function CombinationsPage() {
                     : "border-border hover:border-primary/40 bg-background"
                 }`}
               >
-                {/* ヘッダー：選択マーク + ラベル + 無駄席バッジ */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`size-5 rounded-full border flex items-center justify-center shrink-0 ${
-                        on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
-                      }`}
-                    >
-                      {on && <Check className="size-3.5" />}
-                    </span>
-                    <span className="font-semibold">{c.label}</span>
-                  </div>
+                <div className="flex items-center gap-3">
+                  {/* 選択マーク */}
                   <span
-                    className={`text-xs font-medium rounded-full px-2 py-0.5 shrink-0 ${
-                      c.waste === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                    className={`size-5 rounded-full border flex items-center justify-center shrink-0 ${
+                      on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
                     }`}
                   >
-                    無駄{c.waste}席
+                    {on && <Check className="size-3.5" />}
                   </span>
-                </div>
 
-                {/* テーブルチップ：実際のテーブル番号 + 定員 */}
-                <div className="flex flex-wrap gap-2">
-                  {tables.map((t) => (
-                    <span
-                      key={t.tableId}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm"
-                    >
-                      <Armchair className="size-4 text-primary" />
-                      <span className="font-medium">{t.tableNumber}</span>
-                      <span className="text-muted-foreground text-xs">{t.capacity}名</span>
-                    </span>
-                  ))}
+                  {/* テーブルチップ：実際のテーブル番号 + 定員 */}
+                  <div className="flex flex-wrap gap-2">
+                    {tables.map((t) => (
+                      <span
+                        key={t.tableId}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm"
+                      >
+                        <Armchair className="size-4 text-primary" />
+                        <span className="font-medium">{t.tableNumber}</span>
+                        <span className="text-muted-foreground text-xs">{t.capacity}名</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-
-                <p className="text-xs text-muted-foreground mt-3">
-                  合計{totalSeats}席 ・ {c.tableCount}卓
-                </p>
               </button>
             );
           })}

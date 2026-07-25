@@ -1,5 +1,5 @@
 // SC-C03 予約者情報入力画面 ／ 権限: GUEST / CUSTOMER
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "../../components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuthStore } from "../../store";
+import { getMyProfile } from "../../api/mockApi";
 
 // 直接URLアクセス用フォールバック（本番では "/" へリダイレクト推奨）
 const MOCK_STATE = {
@@ -18,12 +20,25 @@ export default function ReservationInfoPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { query, selected } = location.state ?? MOCK_STATE;
+  const user = useAuthStore((s) => s.user);
 
-  // TODO [AUTH]: ログイン済みなら GET /api/customers/me で氏名・電話を初期値に補完
   const [customerName, setCustomerName]   = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [notes, setNotes]                 = useState("");
+
+  // ログイン済みなら会員情報（GET /api/customers/me）で氏名・電話・メールを自動補完。
+  // 既に入力済みの値は上書きしない（v || ...）。取得失敗時は空のまま手入力。
+  useEffect(() => {
+    if (!user) return;
+    getMyProfile()
+      .then((p) => {
+        setCustomerName((v) => v || p.name || "");
+        setCustomerPhone((v) => v || p.phone || "");
+        setCustomerEmail((v) => v || p.email || "");
+      })
+      .catch(() => {});
+  }, [user]);
 
   const canNext = customerName.trim() && customerPhone.trim() && customerEmail.trim();
 
@@ -41,6 +56,11 @@ export default function ReservationInfoPage() {
         <Card>
           <CardHeader>
             <CardTitle>予約者情報の入力</CardTitle>
+            {user && (
+              <p className="text-sm text-muted-foreground">
+                会員情報から自動入力しました。必要に応じて編集できます。
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <form onSubmit={handleNext} className="flex flex-col gap-4">
