@@ -16,6 +16,8 @@ export default function LoginPage() {
 
   // ログイン後の遷移先（"マイ予約を見る" などから来た場合は元の画面へ）
   const from = location.state?.from ?? "/mypage";
+  // 新規登録直後なら成功バナーを表示
+  const registered = location.state?.registered;
 
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -47,6 +49,11 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {registered && (
+                <p className="text-sm text-emerald-700 bg-emerald-50 rounded-md px-3 py-2 text-center">
+                  登録が完了しました。ログインしてください。
+                </p>
+              )}
               <div className="grid gap-2">
                 <Label htmlFor="email">メールアドレス</Label>
                 <Input id="email" type="email" placeholder="yamada@example.com"

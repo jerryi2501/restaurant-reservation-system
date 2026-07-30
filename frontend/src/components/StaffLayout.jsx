@@ -74,7 +74,7 @@ export default function StaffLayout({ children }) {
           </p>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full rounded-lg px-3 py-2 text-sm hover:bg-white/10"
+            className="flex items-center gap-3 w-full rounded-lg px-3 py-2 text-sm hover:bg-white/10 cursor-pointer"
             style={{ color: "rgba(255,255,255,0.8)" }}
           >
             <LogOut className="size-4" />

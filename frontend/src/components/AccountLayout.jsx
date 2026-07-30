@@ -47,7 +47,7 @@ export default function AccountLayout({ children }) {
                 })}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                    isActive ? "bg-primary" : "hover:bg-muted"
+                    isActive ? "bg-primary" : "hover:bg-primary/10"
                   }`
                 }
               >
@@ -58,7 +58,7 @@ export default function AccountLayout({ children }) {
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-left text-muted-foreground hover:bg-muted"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-left text-muted-foreground hover:bg-primary/10 cursor-pointer"
             >
               <LogOut className="size-4" />
               ログアウト

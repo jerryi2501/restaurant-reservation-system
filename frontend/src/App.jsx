@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoadingSpinner from "./components/LoadingSpinner";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // 顧客（Customer）— 予約フロー
 const ReservationStartPage    = lazy(() => import("./pages/customer/ReservationStartPage"));    // SC-C01
@@ -48,10 +49,10 @@ export default function App() {
           {/* 顧客：会員系 */}
           <Route path="/login"    element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/mypage"              element={<ProfilePage />} />
-          <Route path="/mypage/reservations" element={<MyReservationsPage />} />
-          <Route path="/mypage/points"       element={<PointHistoryPage />} />
-          <Route path="/mypage/settings"     element={<SettingsPage />} />
+          <Route path="/mypage"              element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/mypage/reservations" element={<ProtectedRoute><MyReservationsPage /></ProtectedRoute>} />
+          <Route path="/mypage/points"       element={<ProtectedRoute><PointHistoryPage /></ProtectedRoute>} />
+          <Route path="/mypage/settings"     element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
           {/* スタッフ */}
           <Route path="/staff/login"        element={<StaffLoginPage />} />

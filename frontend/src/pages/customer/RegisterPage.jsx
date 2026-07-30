@@ -27,10 +27,9 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
     try {
-      // 登録API（TODO [BACKEND] は mockApi.registerCustomer 内）
       await registerCustomer(form);
-      alert("登録が完了しました。ログインしてください。");
-      navigate("/login"); // 登録後はログイン画面へ
+      // 登録成功 → ログイン画面へ。成功メッセージは state で渡してバナー表示する（alert は使わない）
+      navigate("/login", { state: { registered: true } });
     } catch (err) {
       setError(err.message); // 409（メール重複）など
     } finally {
